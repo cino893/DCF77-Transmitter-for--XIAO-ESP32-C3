@@ -12,6 +12,8 @@
   Chinesse movements and derivatives: 1 o'clock AM
 */
 
+//WARNING: DOESN'T WORK ON ESP32C3 PROPABLY DUE TO NO LEDC_HIGH_SPEED_MODE
+
 
 #include <WiFi.h>
 #include <Ticker.h>
@@ -24,17 +26,18 @@
                           // const char* ssid = "YourOwnSSID";
                           // const char* password = "YourSoSecretPassword";
                           
-#define LEDBUILTIN 5      // LED pin, LED flashes when antenna is transmitting
-#define ANTENNAPIN 15     // Antenna pin. Connect antenna from here to ground, use a 1k resistor to limit transmitting power. A slightly tuned ferrite antenna gets around 3 meters and a wire loop may work if close enough.
-#define CONTINUOUSMODE // Uncomment this line to bypass de cron and have the transmitter on all the time
+// #define LEDBUILTIN 5      // LED pin, LED flashes when antenna is transmitting
+                          // C3 has no controllable build IN LED - use serial to debug
+#define ANTENNAPIN D6     // Antenna pin. Connect antenna from here to ground, use a 1k resistor to limit transmitting power. A slightly tuned ferrite antenna gets around 3 meters and a wire loop may work if close enough.
+// #define CONTINUOUSMODE // Uncomment this line to bypass de cron and have the transmitter on all the time
 
 // cron (if you choose the correct values you can even run on batteries)
 // If you choose really bad this minutes, everything goes wrong, so minuteToWakeUp must be greater than minuteToSleep
-#define minuteToWakeUp  55 // Every hoursToWakeUp at this minute the ESP32 wakes up get time and star to transmit
-#define minuteToSleep   8 // If it is running at this minute then goes to sleep and waits until minuteToWakeUp
+#define minuteToWakeUp  58 // Every hoursToWakeUp at this minute the ESP32 wakes up get time and star to transmit
+#define minuteToSleep   15 + 2 // If it is running at this minute then goes to sleep and waits until minuteToWakeUp
 
 
-byte hoursToWakeUp[] = {0,1,2,3}; // you can add more hours to adapt to your needs
+byte hoursToWakeUp[] = {0,3}; // you can add more hours to adapt to your needs
                       // When the ESP32 wakes up, check if the actual hour is in the list and
                       // runs or goes to sleep until next minuteToWakeUp
 
@@ -46,13 +49,17 @@ int impulseArray[60];
 int impulseCount = 0;
 int actualHours, actualMinutes, actualSecond, actualDay, actualMonth, actualYear, DayOfW;
 long dontGoToSleep = 0;
-const long onTimeAfterReset = 600000; // Ten minutes
+const long onTimeAfterReset = 60000 * 15; // Fifteen minutes (typical clock max fetch time)
 int timeRunningContinuous = 0;
 
 const char* ntpServer = "es.pool.ntp.org"; // enter your closer pool or pool.ntp.org
 const char* TZ_INFO    = "CET-1CEST-2,M3.5.0/02:00:00,M10.5.0/03:00:00";  // enter your time zone (https://remotemonitoringsystems.ca/time-zone-abbreviations.php)
 
 struct tm timeinfo;
+
+String signalStr = "";
+char signalE = '?';
+
 
 void setup() {
   esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_ALL);
@@ -61,8 +68,8 @@ void setup() {
   Serial.println();
   Serial.println("DCF77 transmitter");
 
- /*
-can be added to save energy when battery-operated
+
+// can be added to save energy when battery-operated
 
 if(setCpuFrequencyMhz(80)){
 Serial.print("CPU frequency set @");
@@ -71,19 +78,22 @@ Serial.println("Mhz");
 }
 else
 Serial.println("Fail to set cpu frequency");
-*/
+
   if (esp_sleep_get_wakeup_cause() == 0) dontGoToSleep = millis();
 
   ledcAttach(ANTENNAPIN, 77500, 8); // Set pin PWM, 77500hz DCF freq, resolution of 8bit
 
-  pinMode (LEDBUILTIN, OUTPUT);
-  digitalWrite (LEDBUILTIN, LOW); // LOW if LEDBUILTIN is inverted like in Wemos boards
+  ledcWrite(ANTENNAPIN, 0);
+  signalE = '0';
+
+//  pinMode (LEDBUILTIN, OUTPUT);
+//  digitalWrite (LEDBUILTIN, LOW); // LOW if LEDBUILTIN is inverted like in Wemos boards
 
   WiFi_on();
   getNTP();
   WiFi_off();
   show_time();
-  
+
   CodeTime(); // first conversion just for cronCheck
 #ifndef CONTINUOUSMODE
   if ((dontGoToSleep == 0) or ((dontGoToSleep + onTimeAfterReset) < millis())) cronCheck(); // first check before start anything
@@ -125,7 +135,7 @@ void CodeTime() {
     actualMinutes = 0;
     actualHours++;
   }
-  actualSecond = timeinfo.tm_sec; 
+  actualSecond = timeinfo.tm_sec;
   if (actualSecond == 60) actualSecond = 0;
 
   int n, Tmp, TmpIn;
@@ -133,14 +143,14 @@ void CodeTime() {
 
   //we put the first 20 bits of each minute at a logical zero value
   for (n = 0; n < 20; n++) impulseArray[n] = 1;
-  
+
   // set DST bit
   if (timeinfo.tm_isdst == 0) {
     impulseArray[18] = 2; // CET or DST OFF
   } else {
     impulseArray[17] = 2; // CEST or DST ON
   }
-  
+
   //bit 20 must be 1 to indicate active time
   impulseArray[20] = 2;
 
@@ -223,22 +233,33 @@ int Bin2Bcd(int dato) {
 }
 
 void DcfOut() {
+  if(impulseCount == 0){
+    Serial.println("co sie dzieje");
+    Serial.println("" + signalStr);
+    signalStr = "";
+  }
+
   switch (impulseCount++) {
     case 0:
       if (impulseArray[actualSecond] != 0) {
-        digitalWrite(LEDBUILTIN, LOW);
+//        digitalWrite(LEDBUILTIN, LOW);
         ledcWrite(ANTENNAPIN, 0);
+        signalE = '0';
       }
       break;
     case 1:
       if (impulseArray[actualSecond] == 1) {
-        digitalWrite(LEDBUILTIN, HIGH);
+//        digitalWrite(LEDBUILTIN, HIGH);
         ledcWrite(ANTENNAPIN, 127);
+        signalE = '1';
       }
       break;
     case 2:
-      digitalWrite(LEDBUILTIN, HIGH);
-      ledcWrite(ANTENNAPIN, 127);
+      if (impulseArray[actualSecond] != 1) {
+//        digitalWrite(LEDBUILTIN, HIGH);
+        ledcWrite(ANTENNAPIN, 127);
+        signalE = '1';
+      }
       break;
     case 9:
       impulseCount = 0;
@@ -247,11 +268,14 @@ void DcfOut() {
       if (actualSecond == 36  || actualSecond == 42 || actualSecond == 45  || actualSecond == 50 ) Serial.print("-");
       if (actualSecond == 28  || actualSecond == 35  || actualSecond == 58 ) Serial.print("P");
 
-      if (impulseArray[actualSecond] == 1) Serial.print("0");
-      if (impulseArray[actualSecond] == 2) Serial.print("1");
+      if (impulseArray[actualSecond] == 1) Serial.println("0");
+      if (impulseArray[actualSecond] == 2) Serial.println("1");
+      if (impulseArray[actualSecond] == 0) Serial.println("x");
+
+      
 
       if (actualSecond == 59 ) {
-        Serial.println();
+        Serial.println("");
         show_time();
 #ifndef CONTINUOUSMODE
         if ((dontGoToSleep == 0) or ((dontGoToSleep + onTimeAfterReset) < millis())) cronCheck();
@@ -263,6 +287,9 @@ void DcfOut() {
       }
       break;
   }
+
+  signalStr += signalE;
+
   if(!getLocalTime(&timeinfo)){
     Serial.println("Error obtaining time...");
     delay(3000);

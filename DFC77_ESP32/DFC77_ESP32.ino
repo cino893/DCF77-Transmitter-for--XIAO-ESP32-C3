@@ -59,9 +59,6 @@ const char* TZ_INFO    = "CET-1CEST-2,M3.5.0/02:00:00,M10.5.0/03:00:00";  // ent
 
 struct tm timeinfo;
 
-String signalStr = "";
-char signalE = '?';
-
 
 void setup() {
   esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_ALL);
@@ -85,7 +82,6 @@ Serial.println("Fail to set cpu frequency");
 
   ledcAttach(ANTENNAPIN, 77500, 8); // Set pin PWM, 77500hz DCF freq, resolution of 8bit
   ledcWrite(ANTENNAPIN, 127);
-  signalE = '0';
 
   pinMode(DRAINPIN_LOW, OUTPUT_OPEN_DRAIN);
   pinMode(DRAINPIN_HIGH, OUTPUT_OPEN_DRAIN);
@@ -238,34 +234,25 @@ int Bin2Bcd(int dato) {
 
 void DcfOut() {
   if(impulseCount == 0){
-    Serial.println("co sie dzieje");
-    Serial.println("" + signalStr);
-    signalStr = "";
   }
 
   switch (impulseCount++) {
     case 0:
       if (impulseArray[actualSecond] != 0) {
-//        digitalWrite(LEDBUILTIN, LOW);
         digitalWrite(DRAINPIN_LOW, LOW);
         digitalWrite(DRAINPIN_HIGH, HIGH);
-        signalE = '0';
       }
       break;
     case 1:
       if (impulseArray[actualSecond] == 1) {
-//        digitalWrite(LEDBUILTIN, HIGH);
         digitalWrite(DRAINPIN_LOW, HIGH);
         digitalWrite(DRAINPIN_HIGH, LOW);
-        signalE = '1';
       }
       break;
     case 2:
       if (impulseArray[actualSecond] != 1) {
-//        digitalWrite(LEDBUILTIN, HIGH);
         digitalWrite(DRAINPIN_LOW, HIGH);
         digitalWrite(DRAINPIN_HIGH, LOW);
-        signalE = '1';
       }
       break;
     case 9:
@@ -275,9 +262,9 @@ void DcfOut() {
       if (actualSecond == 36  || actualSecond == 42 || actualSecond == 45  || actualSecond == 50 ) Serial.print("-");
       if (actualSecond == 28  || actualSecond == 35  || actualSecond == 58 ) Serial.print("P");
 
-      if (impulseArray[actualSecond] == 1) Serial.println("0");
-      if (impulseArray[actualSecond] == 2) Serial.println("1");
-      if (impulseArray[actualSecond] == 0) Serial.println("x");
+      if (impulseArray[actualSecond] == 1) Serial.print("0");
+      if (impulseArray[actualSecond] == 2) Serial.print("1");
+      if (impulseArray[actualSecond] == 0) Serial.print("X");
 
       
 
@@ -294,8 +281,6 @@ void DcfOut() {
       }
       break;
   }
-
-  signalStr += signalE;
 
   if(!getLocalTime(&timeinfo)){
     Serial.println("Error obtaining time...");

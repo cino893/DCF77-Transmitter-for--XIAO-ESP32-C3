@@ -28,7 +28,9 @@
                           
 // #define LEDBUILTIN 5      // LED pin, LED flashes when antenna is transmitting
                           // C3 has no controllable build IN LED - use serial to debug
-#define ANTENNAPIN D6     // Antenna pin. Connect antenna from here to ground, use a 1k resistor to limit transmitting power. A slightly tuned ferrite antenna gets around 3 meters and a wire loop may work if close enough.
+#define ANTENNAPIN D0     // Antenna pin. Connect antenna from here to ground, use a 1k resistor to limit transmitting power. A slightly tuned ferrite antenna gets around 3 meters and a wire loop may work if close enough.around 3 meters and a wire loop may work if close enough.
+#define DRAINPIN_LOW D4
+#define DRAINPIN_HIGH D6
 // #define CONTINUOUSMODE // Uncomment this line to bypass de cron and have the transmitter on all the time
 
 // cron (if you choose the correct values you can even run on batteries)
@@ -82,9 +84,11 @@ Serial.println("Fail to set cpu frequency");
   if (esp_sleep_get_wakeup_cause() == 0) dontGoToSleep = millis();
 
   ledcAttach(ANTENNAPIN, 77500, 8); // Set pin PWM, 77500hz DCF freq, resolution of 8bit
-
-  ledcWrite(ANTENNAPIN, 0);
+  ledcWrite(ANTENNAPIN, 127);
   signalE = '0';
+
+  pinMode(DRAINPIN_LOW, OUTPUT_OPEN_DRAIN);
+  pinMode(DRAINPIN_HIGH, OUTPUT_OPEN_DRAIN);
 
 //  pinMode (LEDBUILTIN, OUTPUT);
 //  digitalWrite (LEDBUILTIN, LOW); // LOW if LEDBUILTIN is inverted like in Wemos boards
@@ -243,21 +247,24 @@ void DcfOut() {
     case 0:
       if (impulseArray[actualSecond] != 0) {
 //        digitalWrite(LEDBUILTIN, LOW);
-        ledcWrite(ANTENNAPIN, 0);
+        digitalWrite(DRAINPIN_LOW, LOW);
+        digitalWrite(DRAINPIN_HIGH, HIGH);
         signalE = '0';
       }
       break;
     case 1:
       if (impulseArray[actualSecond] == 1) {
 //        digitalWrite(LEDBUILTIN, HIGH);
-        ledcWrite(ANTENNAPIN, 127);
+        digitalWrite(DRAINPIN_LOW, HIGH);
+        digitalWrite(DRAINPIN_HIGH, LOW);
         signalE = '1';
       }
       break;
     case 2:
       if (impulseArray[actualSecond] != 1) {
 //        digitalWrite(LEDBUILTIN, HIGH);
-        ledcWrite(ANTENNAPIN, 127);
+        digitalWrite(DRAINPIN_LOW, HIGH);
+        digitalWrite(DRAINPIN_HIGH, LOW);
         signalE = '1';
       }
       break;

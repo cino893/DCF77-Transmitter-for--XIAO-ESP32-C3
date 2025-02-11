@@ -5,16 +5,18 @@ DCF77 Transmitter for ESP32 XIAO ESP32 C3
 
 ## Scheme
 
-![image](https://github.com/user-attachments/assets/a7ad53bb-939c-4a28-9962-5f653b534eff)
+![image](https://github.com/user-attachments/assets/90069970-a900-4404-9655-3e439a9f3789)
 
 
 ## Actual photos
-*it's upside down scheme
+*it's upside down scheme 
 
 
-![image](https://github.com/user-attachments/assets/388a1a5e-7eef-414d-af9c-461f0e09b676)
+![image](https://github.com/user-attachments/assets/e978c29a-85bc-45b2-bdb2-574e38c51637)
 
-![image](https://github.com/user-attachments/assets/8d6f37bf-e118-41fe-8187-ea32bf65bf49)
+
+![image](https://github.com/user-attachments/assets/d3bd87db-3941-4a23-a2cc-1102b7deff4a)
+
 
 
 
